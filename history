@@ -1,0 +1,16 @@
+This file MUST have all changes made in the project by the students. This wil help
+us check what everyone has done until the current time and it will make easier
+to detect any points os risk.
+
+29/09/2017 - Gustavo Olegario
+
+In this first commit, I made the necessary changes to the EPOS system accepts
+the driver from the AdaFruit. The main changes were:
+
+- I transform all variables from 8, 16 bits to 32 bits
+- I commented the print command, since the the uart serial doesn't support this operation
+- I changed the 'available' method of the SerialSoftware to it's equivalent in the EPOS: 'get'
+- The configuration of the serial at the 'begin' method can have some problems, because I used
+the values for data, parity and stop bits from the test and I don't what they mean.
+
+The version of this code is compiling.
