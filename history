@@ -14,3 +14,14 @@ the driver from the AdaFruit. The main changes were:
 the values for data, parity and stop bits from the test and I don't what they mean.
 
 The version of this code is compiling.
+
+02/10/2017 - Gustavo Olegario & Johann Westphall
+
+Our new changes are basically:
+
+- We created a main file based on examples that we find on repositories.
+The name of the file is "main_fingerprint.cc"
+- We adapted the code to follow the standard used by the EPOS. 
+- We adapted the Adafruit library using the EPOS uart, to read and send data
+through the serial.
+- We adapted the print from the serial, to the 'cout' of the EPOS.
