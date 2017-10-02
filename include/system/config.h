@@ -11,7 +11,7 @@
 #define ARCH armv7
 #define MACH cortex
 #define MMOD lm3s811
-#define APPL main
+#define APPL main_fingerprint
 #define __mode_library__
 #define __arch_armv7__
 #define __mach_cortex__

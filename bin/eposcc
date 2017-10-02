@@ -6,7 +6,7 @@
 #=========================================================================
 # PATHS
 #=========================================================================
-EPOS=/home/olegario/INE-5424-Sistemas-Operacionais-II
+EPOS=/home/johann/Desktop/ufsc/SO2/INE-5424-Sistemas-Operacionais-II
 TMP=/tmp
 INC=$EPOS/include
 SRC=$EPOS/src

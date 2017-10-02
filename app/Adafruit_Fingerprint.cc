@@ -17,7 +17,6 @@
 #include "Adafruit_Fingerprint.h"
 #include <uart.h>
 #include <machine.h>
-#include <utility/ostream.h>
 
 using namespace EPOS;
 
@@ -161,51 +160,56 @@ uint32_t Adafruit_Fingerprint::getTemplateCount(void) {
 void Adafruit_Fingerprint::writePacket(uint32_t addr, uint32_t packettype,
 				       uint32_t len, uint32_t *packet) {
 #ifdef FINGERPRINT_DEBUG
-  Serial.print("---> 0x");
-  Serial.print((uint32_t)(FINGERPRINT_STARTCODE >> 8), HEX);
-  Serial.print(" 0x");
-  Serial.print((uint32_t)FINGERPRINT_STARTCODE, HEX);
-  Serial.print(" 0x");
-  Serial.print((uint32_t)(addr >> 24), HEX);
-  Serial.print(" 0x");
-  Serial.print((uint32_t)(addr >> 16), HEX);
-  Serial.print(" 0x");
-  Serial.print((uint32_t)(addr >> 8), HEX);
-  Serial.print(" 0x");
-  Serial.print((uint32_t)(addr), HEX);
-  Serial.print(" 0x");
-  Serial.print((uint32_t)packettype, HEX);
-  Serial.print(" 0x");
-  Serial.print((uint32_t)(len >> 8), HEX);
-  Serial.print(" 0x");
-  Serial.print((uint32_t)(len), HEX);
+  cout << ("---> 0x");
+  cout<< std::hex << (uint32_t)(FINGERPRINT_STARTCODE >> 8);
+  cout << (" 0x");
+  cout<< std::hex << (uint32_t)FINGERPRINT_STARTCODE;
+  cout << (" 0x");
+  cout<< std::hex << (uint32_t)(addr >> 24);
+  cout << (" 0x");
+  cout<< std::hex << (uint32_t)(addr >> 16);
+  cout << (" 0x");
+  cout<< std::hex << (uint32_t)(addr >> 8);
+  cout << (" 0x");
+  cout<< std::hex << (uint32_t)(addr);
+  cout << (" 0x");
+  cout<< std::hex << (uint32_t)packettype;
+  cout << (" 0x");
+  cout<< std::hex << (uint32_t)(len >> 8);
+  cout << (" 0x");
+  cout<< std::hex << (uint32_t)(len);
 #endif
+if(mySerial->ready_to_put()){
+  mySerial->put((uint8_t)(FINGERPRINT_STARTCODE >> 8));
+  mySerial->put((uint8_t)FINGERPRINT_STARTCODE);
+  mySerial->put((uint8_t)(addr >> 24));
+  mySerial->put((uint8_t)(addr >> 16));
+  mySerial->put((uint8_t)(addr >> 8));
+  mySerial->put((uint8_t)(addr));
+  mySerial->put((uint8_t)packettype);
+  mySerial->put((uint8_t)(len >> 8));
+  mySerial->put((uint8_t)(len));
+}
 
-/*  mySerial->print((uint32_t)(FINGERPRINT_STARTCODE >> 8), BYTE);
-  mySerial->print((uint32_t)FINGERPRINT_STARTCODE, BYTE);
-  mySerial->print((uint32_t)(addr >> 24), BYTE);
-  mySerial->print((uint32_t)(addr >> 16), BYTE);
-  mySerial->print((uint32_t)(addr >> 8), BYTE);
-  mySerial->print((uint32_t)(addr), BYTE);
-  mySerial->print((uint32_t)packettype, BYTE);
-  mySerial->print((uint32_t)(len >> 8), BYTE);
-  mySerial->print((uint32_t)(len), BYTE);*/
-
-  uint32_t sum = (len>>8) + (len&0xFF) + packettype;
-  for (uint32_t i=0; i< len-2; i++) {
-    //mySerial->print((uint32_t)(packet[i]), BYTE);
+  uint16_t sum = (len>>8) + (len&0xFF) + packettype;
+  for (uint8_t i=0; i< len-2; i++) {
+    mySerial->put((uint8_t)(packet[i]));
 #ifdef FINGERPRINT_DEBUG
-    Serial.print(" 0x"); Serial.print(packet[i], HEX);
+    cout << (" 0x");
+    cout << std::hex << packet[i];
 #endif
     sum += packet[i];
   }
 #ifdef FINGERPRINT_DEBUG
   //Serial.print("Checksum = 0x"); Serial.println(sum);
-  /*Serial.print(" 0x"); Serial.print((uint32_t)(sum>>8), HEX);
-  Serial.print(" 0x"); Serial.println((uint32_t)(sum), HEX);*/
+  cout << '\n';
+  cout << (" 0x"); 
+  cout<< std::hex << (uint8_t)(sum>>8);
+  Serial.print(" 0x"); 
+  cout<< std::hex << (uint8_t)(sum);
 #endif
-  /*mySerial->print((uint32_t)(sum>>8), BYTE);
-  mySerial->print((uint32_t)sum, BYTE);*/
+  mySerial->put((uint8_t)(sum>>8));
+  mySerial->put((uint8_t)sum);
 }
 
 
@@ -215,10 +219,10 @@ uint32_t Adafruit_Fingerprint::getReply(uint32_t packet[], uint32_t timeout) {
 
   idx = 0;
 #ifdef FINGERPRINT_DEBUG
-  Serial.print("<--- ");
+  cout << ("<--- ");
 #endif
 while (true) {
-    while (!mySerial->get()) {
+    while (!mySerial->ready_to_get()) {
       Machine::delay(1);
       timer++;
       if (timer >= timeout) return FINGERPRINT_TIMEOUT;
@@ -226,7 +230,8 @@ while (true) {
     // something to read!
     reply[idx] = mySerial->get();
 #ifdef FINGERPRINT_DEBUG
-    Serial.print(" 0x"); Serial.print(reply[idx], HEX);
+    cout << (" 0x"); 
+    cout << std::hex << reply[idx];
 #endif
     if ((idx == 0) && (reply[0] != (FINGERPRINT_STARTCODE >> 8)))
       continue;
@@ -250,9 +255,17 @@ while (true) {
         packet[1+i] = reply[9+i];
       }
 #ifdef FINGERPRINT_DEBUG
-      Serial.println();
+      cout << '\n';
 #endif
       return len;
     }
   }
 }
+
+/*
+ * Available virou get
+ * tudo virou 32 bits
+ * tirei o print
+ * uart
+ * configu uart
+ */
