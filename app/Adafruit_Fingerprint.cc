@@ -17,6 +17,7 @@
 #include "Adafruit_Fingerprint.h"
 #include <uart.h>
 #include <machine.h>
+#include <utility/ostream.h>
 
 using namespace EPOS;
 
@@ -255,11 +256,3 @@ while (true) {
     }
   }
 }
-
-/*
- * Available virou get
- * tudo virou 32 bits
- * tirei o print
- * uart
- * configu uart
- */
