@@ -129,9 +129,11 @@ int getFingerprintIDez() {
 
 int main()
 {
+  Machine::delay(500);
   mySerial = new UART(0, 57600, 8, 0, 1);
   finger = new FPM();
   setup();
-  loop();
+  while(true)
+    loop();
   return 0;
 }
