@@ -58,6 +58,7 @@
 #define FINGERPRINT_SETSYSPARAM	0x0E
 #define FINGERPRINT_READSYSPARAM    0x0F
 #define FINGERPRINT_VERIFYPASSWORD 0x13
+#define FINGERPRINT_HANDSHAKE 0x17
 #define FINGERPRINT_HISPEEDSEARCH 0x04 //0x1B
 #define FINGERPRINT_TEMPLATECOUNT 0x1D
 #define FINGERPRINT_READTEMPLATEINDEX   0x1F
@@ -171,6 +172,9 @@ class FPM {
   uint32_t theAddress;
   UART * mySerial;
   
+  uint8_t handshake();
+  void clearBuffer();
+  void printBuffer();
   void writePacket(uint32_t addr, uint8_t packettype, uint16_t len, uint8_t *packet);
   uint16_t getReply(uint8_t * replyBuf=0, /*Stream * outStream = NULL,*/ uint16_t timeout=DEFAULTTIMEOUT);
 };

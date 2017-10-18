@@ -8,12 +8,14 @@
 
 #include "FPM.h"
 #include <machine.h>
+#include <alarm.h>
 
 static const char param_offsets[] = {0, 1, 2, 3, 4, 6, 7};
 static const char param_sizes[] = {2, 2, 2, 2, 4, 2, 2};
 static const uint16_t pLengths[] = {32, 64, 128, 256};
 
 using namespace EPOS;
+OStream cout;
 
 FPM::FPM() {
   thePassword = 0;
@@ -22,22 +24,39 @@ FPM::FPM() {
   capacity = 0;
 }
 
+uint8_t FPM::handshake(){
+  buffer[0] = FINGERPRINT_HANDSHAKE; 
+  writePacket(theAddress, FINGERPRINT_COMMANDPACKET, 4, buffer);
+  printBuffer();
+  uint16_t len = getReply();
+  printBuffer();
+  if (buffer[6] != FINGERPRINT_ACKPACKET)
+   return FINGERPRINT_BADPACKET;
+  return buffer[9];
+}
+
 bool FPM::begin(UART *ss, uint32_t password, uint32_t address, uint8_t pLen) {
     mySerial = ss;
-    
+    clearBuffer();
+    /*
     buffer[0] = FINGERPRINT_VERIFYPASSWORD;
     buffer[1] = thePassword >> 24; buffer[2] = thePassword >> 16;
     buffer[3] = thePassword >> 8; buffer[4] = thePassword;
     writePacket(theAddress, FINGERPRINT_COMMANDPACKET, 7, buffer);
+    printBuffer();
     uint16_t len = getReply();
 
-    if ((len != 1) || (buffer[6] != FINGERPRINT_ACKPACKET) || (buffer[9] != FINGERPRINT_OK))
-      return false;
-      
+    printBuffer();
+    if ((len != 1) || (buffer[6] != FINGERPRINT_ACKPACKET) || (buffer[9] != FINGERPRINT_OK)){
+       cout << len << "    " << buffer[6] << "   " << buffer[9] << endl;
+       return false;
+    }*/
+    handshake();
     thePassword = password;
     theAddress = address;
-    if (readParam(DB_SIZE, &capacity) != FINGERPRINT_OK)        // get the capacity
-        return false;
+    if (readParam(DB_SIZE, &capacity) != FINGERPRINT_OK)
+        return false;       // get the capacity
+
     if (pLen <= PACKET_256){               // set the packet length as needed
       if (setParam(SET_PACKET_LEN, pLen) == FINGERPRINT_OK){
           packetLen = pLengths[pLen];
@@ -136,7 +155,6 @@ uint8_t FPM::readParam(uint8_t param, uint32_t * value){
     buffer[0] = FINGERPRINT_READSYSPARAM;
 	writePacket(theAddress, FINGERPRINT_COMMANDPACKET, 3, buffer);
     uint16_t len = getReply();
-    
     if (buffer[6] != FINGERPRINT_ACKPACKET)
         return FINGERPRINT_BADPACKET;
     
@@ -352,25 +370,32 @@ uint8_t FPM::getFreeIndex(uint8_t page, int16_t * id){
 void FPM::writePacket(uint32_t addr, uint8_t packettype, 
 				       uint16_t len, uint8_t *packet) {
 #ifdef FINGERPRINT_DEBUG
-  cout << ("---> 0x");
-  cout<< std::hex << (uint32_t)(FINGERPRINT_STARTCODE >> 8);
-  cout << (" 0x");
-  cout<< std::hex << (uint32_t)FINGERPRINT_STARTCODE;
-  cout << (" 0x");
-  cout<< std::hex << (uint32_t)(addr >> 24);
-  cout << (" 0x");
-  cout<< std::hex << (uint32_t)(addr >> 16);
-  cout << (" 0x");
-  cout<< std::hex << (uint32_t)(addr >> 8);
-  cout << (" 0x");
-  cout<< std::hex << (uint32_t)(addr);
-  cout << (" 0x");
-  cout<< std::hex << (uint32_t)packettype;
-  cout << (" 0x");
-  cout<< std::hex << (uint32_t)(len >> 8);
-  cout << (" 0x");
-  cout<< std::hex << (uint32_t)(len);
+  //cout << ("---> 0x");
+  cout << hex << (uint32_t)(FINGERPRINT_STARTCODE >> 8) << endl;
+  //cout << (" 0x");
+  cout << hex << (uint32_t)FINGERPRINT_STARTCODE<< endl;
+  //cout << (" 0x");
+  cout << hex << (uint32_t)(addr >> 24)<< endl;
+  //cout << (" 0x");
+  cout << hex << (uint32_t)(addr >> 16)<< endl;
+  //cout << (" 0x");
+  cout << hex << (uint32_t)(addr >> 8)<< endl;
+  //cout << (" 0x");
+  cout << hex << (uint32_t)(addr)<< endl;
+  //cout << (" 0x");
+  cout << hex << (uint32_t)packettype<< endl;
+  //cout << (" 0x");
+  cout << hex << (uint32_t)(len >> 8)<< endl;
+  //cout << (" 0x");
+  cout << hex << (uint32_t)(len) << endl;
 #endif
+
+
+  uint16_t sum = (len>>8) + (len&0xFF) + packettype;
+  for (uint8_t i=0; i< len-2; i++) {
+    sum += packet[i];
+  }
+
 if(mySerial->ready_to_put()){
   mySerial->put((uint8_t)(FINGERPRINT_STARTCODE >> 8));
   mySerial->put((uint8_t)FINGERPRINT_STARTCODE);
@@ -381,27 +406,14 @@ if(mySerial->ready_to_put()){
   mySerial->put((uint8_t)packettype);
   mySerial->put((uint8_t)(len >> 8));
   mySerial->put((uint8_t)(len));
-}
-
-  uint16_t sum = (len>>8) + (len&0xFF) + packettype;
   for (uint8_t i=0; i< len-2; i++) {
     mySerial->put((uint8_t)(packet[i]));
-#ifdef FINGERPRINT_DEBUG
-    cout << (" 0x");
-    cout << std::hex << packet[i];
-#endif
-    sum += packet[i];
   }
-#ifdef FINGERPRINT_DEBUG
-  //Serial.print("Checksum = 0x"); Serial.println(sum);
-  cout << '\n';
-  cout << (" 0x"); 
-  cout<< std::hex << (uint8_t)(sum>>8);
-  Serial.print(" 0x"); 
-  cout<< std::hex << (uint8_t)(sum);
-#endif
   mySerial->put((uint8_t)(sum>>8));
   mySerial->put((uint8_t)sum);
+}
+
+
 }
 
 //MODIFIED: adjusted to allow for image download
@@ -417,13 +429,10 @@ uint16_t FPM::getReply(uint8_t * replyBuf, /*Stream * outStream,*/ uint16_t time
       packet = buffer;
   
   idx = 0;
-#ifdef FINGERPRINT_DEBUG
-  cout << ("<--- ");
-#endif
 
 while (true) {
     while (!mySerial->ready_to_get()) {
-      Machine::delay(5);
+      Delay(5000);
       timer++;
       if (timer >= timeout)
           return FINGERPRINT_TIMEOUT;
@@ -435,17 +444,19 @@ while (true) {
         outStream->write(val);
     }
     else*/
+  
         packet[idx] = val;
 
     if ((idx == 0) && (packet[0] != (FINGERPRINT_STARTCODE >> 8)))
       continue;
     
 #ifdef FINGERPRINT_DEBUG
-    cout << (" 0x"); 
-    cout << std::hex << reply[idx];
+    //cout << (" 0x"); 
+    //cout << reply[idx] << endl;
 #endif
 
     if (idx == 8) {
+
       if ((packet[0] != (FINGERPRINT_STARTCODE >> 8)) ||
           (packet[1] != (FINGERPRINT_STARTCODE & 0xFF)))
           return FINGERPRINT_BADPACKET;
@@ -453,17 +464,29 @@ while (true) {
       len <<= 8;
       len |= packet[8];
       len -= 2;  // ignore checksum
-  	}
+    }
     
     idx++;
-    if (idx < len + 9)
+    if (idx < len + 9){
         continue;
-    else{
+    } else {
         mySerial->get();   // read off checksum if its arrived, to free up buffer space
         mySerial->get();
         return len;
     }
   }
+}
+
+void FPM:: printBuffer(){
+	for(int i = 0; i < 44; i++){
+		cout << hex << buffer[i] << endl;
+    }
+}
+
+void FPM::clearBuffer(){
+	for(int i = 0; i < 44; i++){
+		buffer[i] = 0;
+    }
 }
 
 

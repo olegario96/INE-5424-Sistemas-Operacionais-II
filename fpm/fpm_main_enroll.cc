@@ -5,6 +5,7 @@
 #include "FPM.cc"
 #include <uart.h>
 #include <machine.h>
+#include <alarm.h>
 #include <utility/ostream.h>
 #define TEMPLATES_PER_PAGE 256
 
@@ -14,7 +15,6 @@ int getFingerprintEnroll(int id);
 
 // pin #2 is IN from sensor (GREEN wire)
 // pin #3 is OUT from arduino  (WHITE wire)
-OStream cout;
 UART *mySerial;
 FPM *finger;
 
@@ -49,7 +49,7 @@ void loop()                     // run over and over again
 {
 
   cout << ("Send any character to enroll a finger->..") << '\n';
-  while (!mySerial->ready_to_get());
+  //while (!mySerial->ready_to_get());
   cout << ("Searching for a free slot to store the template...")<< '\n';
   int16_t id;
   if (get_free_id(&id))
@@ -109,18 +109,23 @@ while(p != FINGERPRINT_OK){
   switch (p) {
     case FINGERPRINT_OK:
       cout << "Image converted" << "\n";
+      Delay(2000000);
       break;
     case FINGERPRINT_IMAGEMESS:
       cout << "Image too messy" << "\n";
+      Delay(2000000);
       return p;
     case FINGERPRINT_PACKETRECIEVEERR:
       cout << "Communication error" << "\n";
+      Delay(2000000);
       return p;
     case FINGERPRINT_FEATUREFAIL:
       cout << "Could not find fingerprint features" << "\n";
+      Delay(2000000);
       return p;
     case FINGERPRINT_INVALIDIMAGE:
       cout << "Could not find fingerprint features" << "\n";
+      Delay(2000000);
       return p;
     default:
       cout << "Unknown error" << "\n";
@@ -128,32 +133,37 @@ while(p != FINGERPRINT_OK){
   }
 
   cout << "Remova o dedo!" << '\n';
-  Machine::delay(2000);
+
   p = 0;
   while (p != FINGERPRINT_NOFINGER) {
     p = finger->getImage();
   }
-  
 
   p = -1;
   cout << "Coloque o mesmo dedo de novo!" << '\n';
+  Delay(1000000);
   while(p != FINGERPRINT_OK){
   p = finger->getImage();
   switch (p) {
     case FINGERPRINT_OK:
       cout << "Image taken" << "\n";
+      Delay(2000000);
       break;
     case FINGERPRINT_NOFINGER:
       cout << "No finger detected" << "\n";
+      Delay(2000000);
       return p;
     case FINGERPRINT_PACKETRECIEVEERR:
       cout << "Communication error" << "\n";
+      Delay(2000000);
       return p;
     case FINGERPRINT_IMAGEFAIL:
       cout << "Imaging error" << "\n";
+      Delay(2000000);
       return p;
     default:
       cout << "Unknown error" << "\n";
+      Delay(2000000);
       return p;
   }
 }
@@ -162,12 +172,15 @@ while(p != FINGERPRINT_OK){
   switch (p) {
     case FINGERPRINT_OK:
       cout << "Image converted" << "\n";
+      Delay(2000000);
       break;
     case FINGERPRINT_IMAGEMESS:
       cout << "Image too messy" << "\n";
+      Delay(2000000);
       return p;
     case FINGERPRINT_PACKETRECIEVEERR:
       cout << "Communication error" << "\n";
+      Delay(2000000);
       return p;
     case FINGERPRINT_FEATUREFAIL:
       cout << "Could not find fingerprint features" << "\n";
@@ -185,14 +198,18 @@ while(p != FINGERPRINT_OK){
   p = finger->createModel();
   if (p == FINGERPRINT_OK) {
     cout << ("Prints matched!");
+      Delay(2000000);
   } else if (p == FINGERPRINT_PACKETRECIEVEERR) {
     cout << ("Communication error");
+      Delay(2000000);
     return p;
   } else if (p == FINGERPRINT_ENROLLMISMATCH) {
     cout << ("Fingerprints did not match");
+      Delay(2000000);
     return p;
   } else {
     cout << ("Unknown error");
+      Delay(2000000);
     return p;
   } 
 
@@ -200,27 +217,36 @@ while(p != FINGERPRINT_OK){
   p = finger->storeModel(id);
   if (p == FINGERPRINT_OK) {
     cout << ("Stored!");
+      Delay(2000000);
     return 0;
   } else if (p == FINGERPRINT_PACKETRECIEVEERR) {
     cout << ("Communication error");
+      Delay(2000000);
     return p;
   } else if (p == FINGERPRINT_BADLOCATION) {
     cout << ("Could not store in that location");
+      Delay(2000000);
     return p;
   } else if (p == FINGERPRINT_FLASHERR) {
     cout << ("Error writing to flash");
+      Delay(2000000);
     return p;
   } else {
     cout << ("Unknown error");
+      Delay(2000000);
     return p;
 } 
 }
 
 int main()
 {
-  Machine::delay(500);
+  Delay(10000000);
+  cout << "Comecou " << endl;
   mySerial = new UART(0, 57600, 8, 0, 1);
+  mySerial->loopback(false);
+cout << "Uart instanciado " << endl;
   finger = new FPM();
+cout << "Dedo instanciado " << endl;
   setup();
   while(true){
   	loop();
