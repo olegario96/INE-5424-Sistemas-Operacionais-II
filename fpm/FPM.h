@@ -164,6 +164,8 @@ class FPM {
   uint8_t getFreeIndex(uint8_t page, int16_t * id);
   uint8_t match_pair(void);
 
+  void printAllParams();
+  
   uint16_t fingerID, confidence, templateCount, packetLen, capacity;
 
  private: 
@@ -173,7 +175,6 @@ class FPM {
   UART * mySerial;
   
   uint8_t handshake();
-  void printAllParams();
   void clearBuffer();
   void printBuffer(uint8_t * buff, uint32_t size = 44);
   void writePacket(uint32_t addr, uint8_t packettype, uint16_t len, uint8_t *packet);

@@ -424,7 +424,7 @@ void sendTemplate(uint16_t id){
 
   finger->writeRaw(templateSend, TEMPLATE_SIZE);
 
-  Delay(5000);
+  Delay(3000000);
   p = finger->storeModel(id);
   switch (p) {
     case FINGERPRINT_OK:
@@ -459,13 +459,14 @@ int main()
   }*/
 
   Delay(50000);
-  getTemplate(0);
-  finger->emptyDatabase();
-  templateSend = templateBuf;
-  sendTemplate(0);
-  Delay(3000000);
+  //getTemplate(0);
+  //finger->deleteModel(0, 1);
+  //templateSend = templateBuf;
+  //sendTemplate(1);
+  //Delay(3000000);
+  //getTemplate(1);
 
-  enroll = 0;
+  enroll = 1;
   if(enroll)
      while(true)
          loopEnroll();

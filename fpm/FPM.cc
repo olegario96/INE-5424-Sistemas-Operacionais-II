@@ -48,7 +48,6 @@ bool FPM::begin(UART *ss, uint32_t password, uint32_t address, uint8_t pLen) {
        return false;
     }
 
-    cout << "Password verified" << endl;
     handshake();
     thePassword = password;
     theAddress = address;
@@ -234,9 +233,9 @@ void FPM::writeRaw(uint8_t * data, uint16_t len){
         writePacket(theAddress, FINGERPRINT_DATAPACKET, packetLen + 2, &data[written]);
         written += packetLen;
         len -= packetLen;
-        while(!mySerial->ready_to_put());
     }
     writePacket(theAddress, FINGERPRINT_ENDDATAPACKET, len + 2, &data[written]);
+    getReply(); // sensor sends unkonwn data
   cout << ("---------------------------------------------") << endl;
   for (int i = 0; i < 768; ++i)
   {
@@ -409,22 +408,22 @@ void FPM::writePacket(uint32_t addr, uint8_t packettype,
     sum += packet[i];
   }
 
-if(mySerial->ready_to_put()){
-  mySerial->put((uint8_t)(FINGERPRINT_STARTCODE >> 8));
-  mySerial->put((uint8_t)FINGERPRINT_STARTCODE);
-  mySerial->put((uint8_t)(addr >> 24));
-  mySerial->put((uint8_t)(addr >> 16));
-  mySerial->put((uint8_t)(addr >> 8));
-  mySerial->put((uint8_t)(addr));
-  mySerial->put((uint8_t)packettype);
-  mySerial->put((uint8_t)(len >> 8));
-  mySerial->put((uint8_t)(len));
-  for (uint8_t i=0; i< len-2; i++) {
-    mySerial->put((uint8_t)(packet[i]));
-  }
-  mySerial->put((uint8_t)(sum>>8));
-  mySerial->put((uint8_t)sum);
+while(!mySerial->ready_to_put());
+mySerial->put((uint8_t)(FINGERPRINT_STARTCODE >> 8));
+mySerial->put((uint8_t)FINGERPRINT_STARTCODE);
+mySerial->put((uint8_t)(addr >> 24));
+mySerial->put((uint8_t)(addr >> 16));
+mySerial->put((uint8_t)(addr >> 8));
+mySerial->put((uint8_t)(addr));
+mySerial->put((uint8_t)packettype);
+mySerial->put((uint8_t)(len >> 8));
+mySerial->put((uint8_t)(len));
+for (uint8_t i=0; i< len-2; i++) {
+  mySerial->put((uint8_t)(packet[i]));
 }
+mySerial->put((uint8_t)(sum>>8));
+mySerial->put((uint8_t)sum);
+
 
 
 }
@@ -508,11 +507,7 @@ void FPM::clearBuffer(){
 
 void FPM::printAllParams(){
     uint32_t value;
-    /*if(setParam(SET_BAUD_RATE, 1) == FINGERPRINT_OK){
-      printBuffer(buffer);
-      cout << "BAUD_RATE: " << 9600 << endl;
-    }
-    while(1);*/
+
     clearBuffer();
     cout << "Lendo params" << endl;
     if (readParam(STATUS_REG, &value) == FINGERPRINT_OK){
