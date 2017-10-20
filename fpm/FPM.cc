@@ -27,9 +27,7 @@ FPM::FPM() {
 uint8_t FPM::handshake(){
   buffer[0] = FINGERPRINT_HANDSHAKE; 
   writePacket(theAddress, FINGERPRINT_COMMANDPACKET, 4, buffer);
-  printBuffer();
   uint16_t len = getReply();
-  printBuffer();
   if (buffer[6] != FINGERPRINT_ACKPACKET)
    return FINGERPRINT_BADPACKET;
   return buffer[9];
@@ -38,22 +36,23 @@ uint8_t FPM::handshake(){
 bool FPM::begin(UART *ss, uint32_t password, uint32_t address, uint8_t pLen) {
     mySerial = ss;
     clearBuffer();
-    /*
+    
     buffer[0] = FINGERPRINT_VERIFYPASSWORD;
     buffer[1] = thePassword >> 24; buffer[2] = thePassword >> 16;
     buffer[3] = thePassword >> 8; buffer[4] = thePassword;
     writePacket(theAddress, FINGERPRINT_COMMANDPACKET, 7, buffer);
-    printBuffer();
+
     uint16_t len = getReply();
 
-    printBuffer();
     if ((len != 1) || (buffer[6] != FINGERPRINT_ACKPACKET) || (buffer[9] != FINGERPRINT_OK)){
-       cout << len << "    " << buffer[6] << "   " << buffer[9] << endl;
        return false;
-    }*/
+    }
+
+    cout << "Password verified" << endl;
     handshake();
     thePassword = password;
     theAddress = address;
+ 
     if (readParam(DB_SIZE, &capacity) != FINGERPRINT_OK)
         return false;       // get the capacity
 
@@ -110,8 +109,9 @@ uint8_t FPM::storeModel(uint16_t id) {
   buffer[1] = 0x01;
   buffer[2] = id >> 8; buffer[3] = id & 0xFF;
   writePacket(theAddress, FINGERPRINT_COMMANDPACKET, 6, buffer);
+
   uint16_t len = getReply();
-  
+
   if (buffer[6] != FINGERPRINT_ACKPACKET)
    return FINGERPRINT_BADPACKET;
   return buffer[9];
@@ -146,6 +146,7 @@ uint8_t FPM::setParam(uint8_t param, uint8_t value){
 
 uint8_t FPM::readParam(uint8_t param, uint16_t * value){
     uint32_t val = *value;
+    cout << "Read Param uint16_t * value" << endl;
     bool ret = readParam(param, &val);
     *value = val;
     return ret;
@@ -153,8 +154,11 @@ uint8_t FPM::readParam(uint8_t param, uint16_t * value){
 
 uint8_t FPM::readParam(uint8_t param, uint32_t * value){
     buffer[0] = FINGERPRINT_READSYSPARAM;
-	writePacket(theAddress, FINGERPRINT_COMMANDPACKET, 3, buffer);
+	  writePacket(theAddress, FINGERPRINT_COMMANDPACKET, 3, buffer);
+
+    clearBuffer();
     uint16_t len = getReply();
+    
     if (buffer[6] != FINGERPRINT_ACKPACKET)
         return FINGERPRINT_BADPACKET;
     
@@ -201,6 +205,7 @@ bool FPM::readRaw(void * out, uint8_t outType, bool * lastPacket, uint16_t * buf
     uint16_t len;
     if (outType == ARRAY_TYPE)
         len = getReply(chunk);
+    //printBuffer(chunk, len);
     //else if (outType == STREAM_TYPE)
         //len = getReply(chunk, outStream);
     
@@ -226,11 +231,18 @@ bool FPM::readRaw(void * out, uint8_t outType, bool * lastPacket, uint16_t * buf
 void FPM::writeRaw(uint8_t * data, uint16_t len){
     uint16_t written = 0;
     while (len > packetLen){
-        writePacket(theAddress, FINGERPRINT_DATAPACKET, packetLen, &data[written]);
+        writePacket(theAddress, FINGERPRINT_DATAPACKET, packetLen + 2, &data[written]);
         written += packetLen;
         len -= packetLen;
+        while(!mySerial->ready_to_put());
     }
-    writePacket(theAddress, FINGERPRINT_ENDDATAPACKET, len, &data[written]);
+    writePacket(theAddress, FINGERPRINT_ENDDATAPACKET, len + 2, &data[written]);
+  cout << ("---------------------------------------------") << endl;
+  for (int i = 0; i < 768; ++i)
+  {
+    cout << "0x" << hex << data[i] << ", ";
+  }
+  cout << ("--------------------------------------------") << endl;
 }
 
 //transfer a fingerprint template from Char Buffer 1 to host computer
@@ -254,6 +266,7 @@ uint8_t FPM::uploadModel(void){
     if (buffer[6] != FINGERPRINT_ACKPACKET)
         return FINGERPRINT_BADPACKET;
     return buffer[9];
+
 }
     
 uint8_t FPM::deleteModel(uint16_t id, uint16_t num) {
@@ -434,8 +447,12 @@ while (true) {
     while (!mySerial->ready_to_get()) {
       Delay(5000);
       timer++;
-      if (timer >= timeout)
-          return FINGERPRINT_TIMEOUT;
+      if (timer >= timeout){
+          cout << "TIMEOUT!" << endl;
+          cout << "Bytes lidos: "<< idx <<endl;
+          return FINGERPRINT_TIMEOUT;        
+      }
+
     }
     // something to read!
     val = mySerial->get();
@@ -477,16 +494,50 @@ while (true) {
   }
 }
 
-void FPM:: printBuffer(){
-	for(int i = 0; i < 44; i++){
-		cout << hex << buffer[i] << endl;
+void FPM:: printBuffer(uint8_t * buffer, uint32_t size){
+    for(int i = 0; i < size; i++){
+        cout << hex << buffer[i] << endl;
     }
 }
 
 void FPM::clearBuffer(){
-	for(int i = 0; i < 44; i++){
-		buffer[i] = 0;
+    for(int i = 0; i < 44; i++){
+        buffer[i] = 255;
     }
 }
+
+void FPM::printAllParams(){
+    uint32_t value;
+    /*if(setParam(SET_BAUD_RATE, 1) == FINGERPRINT_OK){
+      printBuffer(buffer);
+      cout << "BAUD_RATE: " << 9600 << endl;
+    }
+    while(1);*/
+    clearBuffer();
+    cout << "Lendo params" << endl;
+    if (readParam(STATUS_REG, &value) == FINGERPRINT_OK){
+      cout << "Status: " << value << endl;
+    } 
+    if (readParam(STATUS_REG, &value) == FINGERPRINT_OK){
+      cout << "System ID: " << value << endl;
+    }
+    if (readParam(DB_SIZE, &value) == FINGERPRINT_OK){
+      cout << "Database Size: " << value << endl;
+    }
+    if (readParam(SEC_LEVEL, &value) == FINGERPRINT_OK){
+      cout << "Security Level: " << value << endl;
+    }   
+    if (readParam(DEVICE_ADDR, &value) == FINGERPRINT_OK){
+      cout << "Device Address: " << value << endl;
+    }   
+    if (readParam(PACKET_LEN, &value) == FINGERPRINT_OK){
+      packetLen = pLengths[value];
+      cout << "Packet Size: " << value << endl;
+    }
+    if (readParam(BAUD_RATE, &value) == FINGERPRINT_OK){
+      cout << "Baud Rate: " << value*9600 << endl;
+    }      
+}
+
 
 

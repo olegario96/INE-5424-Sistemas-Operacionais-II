@@ -141,7 +141,7 @@ typedef short int int16_t;
 class FPM {
  public:
   FPM();
-  bool begin(UART *ss, uint32_t password=0, uint32_t address=0xffffffff, uint8_t packetLen=PACKET_INVALID);
+  bool begin(UART *ss, uint32_t password=0, uint32_t address=0xffffffff, uint8_t packetLen = PACKET_32);
   
   uint8_t getImage(void);
   uint8_t image2Tz(uint8_t slot = 1);
@@ -173,8 +173,9 @@ class FPM {
   UART * mySerial;
   
   uint8_t handshake();
+  void printAllParams();
   void clearBuffer();
-  void printBuffer();
+  void printBuffer(uint8_t * buff, uint32_t size = 44);
   void writePacket(uint32_t addr, uint8_t packettype, uint16_t len, uint8_t *packet);
   uint16_t getReply(uint8_t * replyBuf=0, /*Stream * outStream = NULL,*/ uint16_t timeout=DEFAULTTIMEOUT);
 };

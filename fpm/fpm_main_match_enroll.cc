@@ -9,7 +9,8 @@
 #include <utility/ostream.h>
 
 #define TEMPLATES_PER_PAGE 256
-#define ENROLL 0 //define 0 to match and 1 to enroll
+int enroll; //define 0 to match and 1 to enroll
+#define TEMPLATE_SIZE 768
 
 int getFingerprintIDez();
 uint32_t getFingerprintID();
@@ -21,7 +22,9 @@ int getFingerprintEnroll(int id);
 
 UART *mySerial;
 FPM *finger;
+uint8_t * templateBuf;
 
+uint8_t * templateSend;
 // On Leonardo/Micro or others with hardware serial, use those! #0 is green wire, #1 is white
 //Adafruit_Fingerprint finger = Adafruit_Fingerprint(&Serial1);
 
@@ -81,7 +84,7 @@ uint32_t getFingerprintID() {
 
   // OK success!
 
-  p = finger->image2Tz();
+  p = finger->image2Tz(1);
   switch (p) {
     case FINGERPRINT_OK:
       cout << "Image converted" << "\n";
@@ -172,14 +175,14 @@ bool get_free_id(int16_t * id){
       case FINGERPRINT_OK:
         if (*id != FINGERPRINT_NOFREEINDEX){
           cout << "Free slot at ID ";
-          cout << *id;
+          cout << *id << endl;
           return true;
         }
       case FINGERPRINT_PACKETRECIEVEERR:
-        cout <<("Communication error!");
+        cout <<("Communication error!") << endl;
         return false;
       default:
-        cout << ("Unknown error!");
+        cout << ("Unknown error!") << endl;
         return false;
     }
 }
@@ -339,17 +342,131 @@ while(p != FINGERPRINT_OK){
     cout << ("Unknown error");
     Delay(2000000);
     return p;
-} 
+  }
 }
 
+void getTemplate(uint16_t id){
+  uint16_t pos = 0, count = 0, buflen = TEMPLATE_SIZE; 
+  bool lastPacket = false, working;
+
+  uint8_t p = finger->loadModel(id);
+  switch (p) {
+    case FINGERPRINT_OK:
+      cout << "template " << id << " loaded" << endl;
+      break;
+    case FINGERPRINT_PACKETRECIEVEERR:
+      cout << "Communication error" << endl;
+      return;
+    case 12:
+      cout << "Error when reading template or inavlid!" << endl;
+      return;
+    default:
+      cout << "Unknown error " << p << endl;
+      return;
+  }
+
+  // OK success!
+  p = finger->getModel();
+  switch (p) {
+    case FINGERPRINT_OK:
+      break;
+   default:
+      cout << "Unknown error " << p << endl;
+      return;
+  }
+
+  Delay(5000);
+  while (true){
+    while(!mySerial->ready_to_get());
+    bool working = finger->readRaw(templateBuf + pos, ARRAY_TYPE, &lastPacket, &buflen);
+    if (working){
+      count++;
+      pos += buflen;
+      buflen = TEMPLATE_SIZE - pos;
+      if (lastPacket){
+        cout << "POS ATUAL: " << pos << endl;
+        break;
+      }
+    }
+    else {
+      cout << "POS ATUAL: " << pos << endl;
+      cout << ("Error receiving packet") << endl;
+      return;
+    }
+  }
+  
+  cout << "WHILE EXECUTOU: " << count << endl;
+
+  cout << ("---------------------------------------------") << endl;
+  for (int i = 0; i < TEMPLATE_SIZE; ++i)
+  {
+    cout << "0x" << hex << templateBuf[i] << ", ";
+  }
+  cout << ("--------------------------------------------") << endl;
+}
+
+void sendTemplate(uint16_t id){
+  int p = finger->uploadModel();
+  switch (p) {
+    case FINGERPRINT_OK:
+      cout << ("Starting template upload") << endl;;
+      break;
+    case FINGERPRINT_PACKETRECIEVEERR:
+      cout << ("Comms error") << endl;;
+      return;
+    case FINGERPRINT_PACKETRESPONSEFAIL:
+      cout << ("Did not receive packet") << endl;;
+      return;
+    default:
+      cout << ("Unknown error") << endl;;
+      return;
+  }
+
+  finger->writeRaw(templateSend, TEMPLATE_SIZE);
+
+  Delay(5000);
+  p = finger->storeModel(id);
+  switch (p) {
+    case FINGERPRINT_OK:
+      cout << ("Template stored at ID ") << (id) << endl;
+      break;
+    case FINGERPRINT_PACKETRECIEVEERR:
+      cout << ("Comms error") << endl;
+      break;
+    case FINGERPRINT_BADLOCATION:
+      cout << ("Could not store in that location") << endl;
+      break;
+    case FINGERPRINT_FLASHERR:
+      cout << ("Error writing to flash") << endl;
+      break;
+    default:
+      cout << ("Unknown error") << endl;
+  }
+  return;
+}
 
 int main()
 {
-  Delay(10000000);
-  mySerial = new UART(0, 57600, 8, 0, 1);
+  Delay(7000000);
+  mySerial = new UART(0, 9600, 8, 0, 1);
   finger = new FPM();
+  templateBuf = new uint8_t[TEMPLATE_SIZE];
+  templateSend = new uint8_t[TEMPLATE_SIZE];
   setup();
-  if(ENROLL)
+  /*for (int i = 0; i < TEMPLATE_SIZE; ++i)
+  {
+    templateSend[i] = templateBuf[TEMPLATE_SIZE - 1 - i];
+  }*/
+
+  Delay(50000);
+  getTemplate(0);
+  finger->emptyDatabase();
+  templateSend = templateBuf;
+  sendTemplate(0);
+  Delay(3000000);
+
+  enroll = 0;
+  if(enroll)
      while(true)
          loopEnroll();
   else
