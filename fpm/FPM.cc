@@ -7,7 +7,6 @@
  ****************************************************/
 
 #include "FPM.h"
-#include <machine.h>
 #include <alarm.h>
 
 static const char param_offsets[] = {0, 1, 2, 3, 4, 6, 7};
@@ -145,7 +144,6 @@ uint8_t FPM::setParam(uint8_t param, uint8_t value){
 
 uint8_t FPM::readParam(uint8_t param, uint16_t * value){
     uint32_t val = *value;
-    cout << "Read Param uint16_t * value" << endl;
     bool ret = readParam(param, &val);
     *value = val;
     return ret;
@@ -236,12 +234,32 @@ void FPM::writeRaw(uint8_t * data, uint16_t len){
     }
     writePacket(theAddress, FINGERPRINT_ENDDATAPACKET, len + 2, &data[written]);
     getReply(); // sensor sends unkonwn data
-  cout << ("---------------------------------------------") << endl;
-  for (int i = 0; i < 768; ++i)
-  {
-    cout << "0x" << hex << data[i] << ", ";
+  // cout << ("---------------------------------------------") << endl;
+  // for (int i = 0; i < 768; ++i)
+  // {
+  //   cout << "0x" << hex << data[i] << ", ";
+  // }
+  // cout << ("--------------------------------------------") << endl;
+}
+
+bool FPM::getBufOneTemplate(uint8_t * templateBuf){
+	uint16_t pos = 0, count = 0, buflen = TEMPLATE_SIZE; 
+    bool lastPacket = false, working;
+	while (true){
+      while(!mySerial->ready_to_get());
+      bool working = readRaw(templateBuf + pos, ARRAY_TYPE, &lastPacket, &buflen);
+      if (working){
+        count++;
+        pos += buflen;
+        buflen = TEMPLATE_SIZE - pos;
+        if (lastPacket){
+          return true;
+      }
+    }
+      else {
+ 		return false;
+    }
   }
-  cout << ("--------------------------------------------") << endl;
 }
 
 //transfer a fingerprint template from Char Buffer 1 to host computer
@@ -353,12 +371,31 @@ uint8_t FPM::getTemplateCount(void) {
     return buffer[9];
 }
 
-uint8_t FPM::getFreeIndex(uint8_t page, int16_t * id){
+bool FPM::getFreeIndex(int16_t * id){
+  int p = -1;
+  for (int page = 0; page < (this->capacity / TEMPLATES_PER_PAGE) + 1; page++){
+    p = getFreeIndexPage(page, id);
+    switch (p){
+      case FINGERPRINT_OK:
+        if (*id != FINGERPRINT_NOFREEINDEX){
+          return true;
+        }
+        break;
+      case FINGERPRINT_PACKETRECIEVEERR:
+        return false;
+      default:
+        break;
+    }
+  }
+}
+
+uint8_t FPM::getFreeIndexPage(uint8_t page, int16_t * id){
     buffer[0] = FINGERPRINT_READTEMPLATEINDEX; 
     buffer[1] = page;
     writePacket(theAddress, FINGERPRINT_COMMANDPACKET, 4, buffer);
     uint16_t len = getReply();
     
+    printBuffer(buffer);
     if (buffer[6] != FINGERPRINT_ACKPACKET)
         return FINGERPRINT_BADPACKET;
     if (buffer[9] == FINGERPRINT_OK){
@@ -434,6 +471,8 @@ uint16_t FPM::getReply(uint8_t * replyBuf, /*Stream * outStream,*/ uint16_t time
   uint8_t bytes = 0;
   uint16_t timer = 0;
   uint16_t len = 0;
+  uint16_t expectedSum = 0;
+  uint16_t receivedSum = 0;
   
   if (replyBuf != 0)
       packet = replyBuf;
@@ -486,9 +525,22 @@ while (true) {
     if (idx < len + 9){
         continue;
     } else {
-        mySerial->get();   // read off checksum if its arrived, to free up buffer space
-        mySerial->get();
-        return len;
+        receivedSum = mySerial->get() << 8;   // read off checksum if its arrived, to free up buffer space
+        receivedSum |= mySerial->get();
+        for (int i = 6; i < len + 9; ++i)
+        {
+          expectedSum += packet[i]; //read about checksum on datasheet
+        }
+        if(expectedSum == receivedSum)
+          return len;
+        else{
+          cout << "Checksum nao é a esperada" << endl;
+          cout << "Checksum reply: "<< hex << receivedSum << endl;
+          cout << "Checksum calculada: "<< hex << expectedSum << endl;
+          printBuffer(buffer);
+          packet[6] = FINGERPRINT_BADPACKET;
+          return FINGERPRINT_BADPACKET;
+        }
     }
   }
 }

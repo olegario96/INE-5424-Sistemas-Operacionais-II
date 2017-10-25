@@ -66,6 +66,9 @@
 
 #define FINGERPRINT_NOFREEINDEX -2
 
+//templates
+#define TEMPLATES_PER_PAGE 256
+#define TEMPLATE_SIZE 768
 
 using namespace EPOS;
 
@@ -158,11 +161,12 @@ class FPM {
   void writeRaw(uint8_t * data, uint16_t len);
   uint8_t getModel(void);
   uint8_t uploadModel(void);
+  bool getFreeIndex(int16_t * id);
   uint8_t deleteModel(uint16_t id, uint16_t num=1);
   uint8_t fingerFastSearch(void);
   uint8_t getTemplateCount(void);
-  uint8_t getFreeIndex(uint8_t page, int16_t * id);
   uint8_t match_pair(void);
+  bool getBufOneTemplate(uint8_t * templateBuf);
 
   void printAllParams();
   
@@ -174,6 +178,7 @@ class FPM {
   uint32_t theAddress;
   UART * mySerial;
   
+  uint8_t getFreeIndexPage(uint8_t page, int16_t * id);
   uint8_t handshake();
   void clearBuffer();
   void printBuffer(uint8_t * buff, uint32_t size = 44);
