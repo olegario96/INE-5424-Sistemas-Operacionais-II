@@ -15,6 +15,7 @@
 #include <persistent_storage.h>
 #include <condition.h>
 #include <spi.h>
+#include "hcsr04.h"
 
 __BEGIN_SYS
 
@@ -22,6 +23,7 @@ enum CUSTOM_UNITS
 {
     UNIT_RFID = TSTP::Unit::DIGITAL | 1,
     UNIT_SWITCH = TSTP::Unit::DIGITAL | 2,
+    UNIT_TEST = TSTP::Unit::DIGITAL | 3,
 };
 
 class Keyboard_Sensor: public Keyboard
@@ -91,7 +93,11 @@ public:
 class Water_Flow_Sensor: public Hydro_Board
 {
 public:
-    static const unsigned int UNIT = (TSTP::Unit::SI) | (TSTP::Unit::DIR) | ((4 + 3) * TSTP::Unit::M) | ((4 - 1) * TSTP::Unit::S); // m^3/s
+    static const unsigned int UNIT = (TSTP::Unit::SI) | (TSTP::Unit::DIR) |
+        ((4+0)*TSTP::Unit::SR) | ((4+0)*TSTP::Unit::RAD) | ((4+3)*TSTP::Unit::M) |
+        ((4+0)*TSTP::Unit::KG) | ((4-1)*TSTP::Unit::S)   | ((4+0)*TSTP::Unit::A) |
+        ((4+0)*TSTP::Unit::K)  | ((4+0)*TSTP::Unit::MOL) | ((4+0)*TSTP::Unit::CD); // m^3/s
+
     static const unsigned int NUM = TSTP::Unit::I32;
     static const int ERROR = 0; // Unknown
 
@@ -361,12 +367,15 @@ private:
     static RFID_Sensor * _dev[MAX_DEVICES];
 };
 
-class Mass_Sensor
+class Distance_Sensor : private HCSR04
 {
+    static const unsigned int MAX_DEVICES = 8;
+
 public:
-   typedef _UTIL::Observed Observed;
-   typedef _UTIL::Observer Observer;
-    static const unsigned int UNIT = TSTP::Unit::KG;
+    typedef _UTIL::Observed Observed;
+    typedef _UTIL::Observer Observer;
+
+    static const unsigned int UNIT = TSTP::Unit::Length;
     static const unsigned int NUM = TSTP::Unit::I32;
     static const int ERROR = 0; // Unknown
 
@@ -374,22 +383,53 @@ public:
     static const bool POLLING = true;
 
 public:
-   Mass_Sensor() {}
-
-    static void sense(unsigned int dev, Smart_Data<Mass_Sensor> * data) {
-        data->_value = 2147483647;
+    Distance_Sensor(unsigned int dev, GPIO * trigger, GPIO * echo) : HCSR04(trigger, echo) {
+        assert(dev < MAX_DEVICES);
+        _dev[dev] = this;
     }
 
-    static void actuate(unsigned int dev, Smart_Data<Mass_Sensor> * data, const Smart_Data<Mass_Sensor>::Value & command) {
+    static void sense(unsigned int dev, Smart_Data<Distance_Sensor> * data) {
+        assert(dev < MAX_DEVICES);
+        if(_dev[dev])
+            data->_value = _dev[dev]->get();
+    }
+
+    static void actuate(unsigned int dev, Smart_Data<Distance_Sensor> * data, const Smart_Data<Distance_Sensor>::Value & command) {}
+
+    static void attach(Observer * obs) {}
+    static void detach(Observer * obs) {}
+
+private:
+    static Distance_Sensor * _dev[MAX_DEVICES];
+};
+
+class Biometric_Sensor
+{
+public:
+   typedef _UTIL::Observed Observed;
+   typedef _UTIL::Observer Observer;
+    static const unsigned int UNIT = CUSTOM_UNITS::UNIT_TEST;
+    static const unsigned int NUM = TSTP::Unit::I32;
+    static const int ERROR = 0; // Unknown
+
+    static const bool INTERRUPT = false;
+    static const bool POLLING = true;
+
+public:
+   Biometric_Sensor() {}
+
+    static void sense(unsigned int dev, Smart_Data<Biometric_Sensor> * data) {
+        data->_value = 55; // nao sabemos como colocar um buffer aqui!
+    }
+
+    static void actuate(unsigned int dev, Smart_Data<Biometric_Sensor> * data, const Smart_Data<Biometric_Sensor>::Value & command) {
         data->_value = command;
     }
 
    static void attach(void * x) { }
    static void detach(void * x) { }
 
-};
-
-typedef Smart_Data<Mass_Sensor> Olegson;
+}; 
 
 typedef Smart_Data<Current_Sensor> Current;
 typedef Smart_Data<ADC_Sensor> Luminous_Intensity;
@@ -401,11 +441,15 @@ typedef Smart_Data<Pluviometer> Rain;
 typedef Smart_Data<RFID_Sensor> RFID;
 typedef Smart_Data<Switch_Sensor> Presence;
 typedef Smart_Data<Switch_Sensor> Switch;
+typedef Smart_Data<Distance_Sensor> Distance;
+
 
 #endif
 
 typedef Smart_Data<Keyboard_Sensor> Acceleration;
 
 __END_SYS
+
+#include "transducer.cc" // Static attributes go here
 
 #endif
