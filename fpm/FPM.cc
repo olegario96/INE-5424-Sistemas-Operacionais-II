@@ -234,12 +234,12 @@ void FPM::writeRaw(uint8_t * data, uint16_t len){
     }
     writePacket(theAddress, FINGERPRINT_ENDDATAPACKET, len + 2, &data[written]);
     getReply(); // sensor sends unkonwn data
-  // cout << ("---------------------------------------------") << endl;
+  // //cout << ("---------------------------------------------") << endl;
   // for (int i = 0; i < 768; ++i)
   // {
-  //   cout << "0x" << hex << data[i] << ", ";
+  //   //cout << "0x" << hex << data[i] << ", ";
   // }
-  // cout << ("--------------------------------------------") << endl;
+  // //cout << ("--------------------------------------------") << endl;
 }
 
 bool FPM::getBufOneTemplate(uint8_t * templateBuf){
@@ -395,7 +395,6 @@ uint8_t FPM::getFreeIndexPage(uint8_t page, int16_t * id){
     writePacket(theAddress, FINGERPRINT_COMMANDPACKET, 4, buffer);
     uint16_t len = getReply();
     
-    printBuffer(buffer);
     if (buffer[6] != FINGERPRINT_ACKPACKET)
         return FINGERPRINT_BADPACKET;
     if (buffer[9] == FINGERPRINT_OK){
@@ -419,24 +418,24 @@ uint8_t FPM::getFreeIndexPage(uint8_t page, int16_t * id){
 void FPM::writePacket(uint32_t addr, uint8_t packettype, 
 				       uint16_t len, uint8_t *packet) {
 #ifdef FINGERPRINT_DEBUG
-  //cout << ("---> 0x");
-  cout << hex << (uint32_t)(FINGERPRINT_STARTCODE >> 8) << endl;
-  //cout << (" 0x");
-  cout << hex << (uint32_t)FINGERPRINT_STARTCODE<< endl;
-  //cout << (" 0x");
-  cout << hex << (uint32_t)(addr >> 24)<< endl;
-  //cout << (" 0x");
-  cout << hex << (uint32_t)(addr >> 16)<< endl;
-  //cout << (" 0x");
-  cout << hex << (uint32_t)(addr >> 8)<< endl;
-  //cout << (" 0x");
-  cout << hex << (uint32_t)(addr)<< endl;
-  //cout << (" 0x");
-  cout << hex << (uint32_t)packettype<< endl;
-  //cout << (" 0x");
-  cout << hex << (uint32_t)(len >> 8)<< endl;
-  //cout << (" 0x");
-  cout << hex << (uint32_t)(len) << endl;
+  ////cout << ("---> 0x");
+  //cout << hex << (uint32_t)(FINGERPRINT_STARTCODE >> 8) << endl;
+  ////cout << (" 0x");
+  //cout << hex << (uint32_t)FINGERPRINT_STARTCODE<< endl;
+  ////cout << (" 0x");
+  //cout << hex << (uint32_t)(addr >> 24)<< endl;
+  ////cout << (" 0x");
+  //cout << hex << (uint32_t)(addr >> 16)<< endl;
+  ////cout << (" 0x");
+  //cout << hex << (uint32_t)(addr >> 8)<< endl;
+  ////cout << (" 0x");
+  //cout << hex << (uint32_t)(addr)<< endl;
+  ////cout << (" 0x");
+  //cout << hex << (uint32_t)packettype<< endl;
+  ////cout << (" 0x");
+  //cout << hex << (uint32_t)(len >> 8)<< endl;
+  ////cout << (" 0x");
+  //cout << hex << (uint32_t)(len) << endl;
 #endif
 
 
@@ -486,8 +485,8 @@ while (true) {
       Delay(5000);
       timer++;
       if (timer >= timeout){
-          cout << "TIMEOUT!" << endl;
-          cout << "Bytes lidos: "<< idx <<endl;
+          ////cout << "TIMEOUT!" << endl;
+          ////cout << "Bytes lidos: "<< idx <<endl;
           return FINGERPRINT_TIMEOUT;        
       }
 
@@ -506,8 +505,8 @@ while (true) {
       continue;
     
 #ifdef FINGERPRINT_DEBUG
-    //cout << (" 0x"); 
-    //cout << reply[idx] << endl;
+    ////cout << (" 0x"); 
+    ////cout << reply[idx] << endl;
 #endif
 
     if (idx == 8) {
@@ -534,9 +533,9 @@ while (true) {
         if(expectedSum == receivedSum)
           return len;
         else{
-          cout << "Checksum nao é a esperada" << endl;
-          cout << "Checksum reply: "<< hex << receivedSum << endl;
-          cout << "Checksum calculada: "<< hex << expectedSum << endl;
+          //cout << "Checksum nao é a esperada" << endl;
+          //cout << "Checksum reply: "<< hex << receivedSum << endl;
+          //cout << "Checksum calculada: "<< hex << expectedSum << endl;
           printBuffer(buffer);
           packet[6] = FINGERPRINT_BADPACKET;
           return FINGERPRINT_BADPACKET;
