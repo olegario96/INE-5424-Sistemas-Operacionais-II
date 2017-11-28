@@ -16,7 +16,7 @@ static const int HOST_MAX_SIZE = 128;
 static const int ROUTE_MAX_SIZE = 128;
 static const int MAX_MESSAGE_SIZE = 1024;
 static const int USER_MAX_SIZE = 64;
-static const int CONNECT_MAX_TRIES = 3;
+static const int CONNECT_MAX_TRIES = 15;
 private:
   char ssidChar[SSID_MAX_SIZE+1];
   String ssid;
@@ -94,18 +94,21 @@ public:
     if(!can_try_connection())
       return false;
     
-    //if wifi has username --> deal with certificate and key files
+    //NOT WORKING FOR EDUROAM!!!!!!!!!!!!!!!!!!!!!if wifi has username --> deal with certificate and key files
     if(user_connect){
-      
       username.toCharArray(username_char, username_size+1);
-      wifi_station_set_username((unsigned char*) username_char, username_size+1);
+      wifi_station_set_username((unsigned char*) username_char, username_size);
 
       SPIFFS.begin();
       certificate = SPIFFS.open("/cert.der", "r");
       key = SPIFFS.open("/key.der", "r");
-      
-      if(!key || !certificate)
+      certificate.seek(0, SeekSet);
+      key.seek(0, SeekSet);
+
+      if(!key || !certificate){
         return false;
+      }
+        
 
       certificateBuffer = new char[certificate.size()];
       keyBuffer = new char[key.size()];
@@ -115,30 +118,33 @@ public:
       if( wifi_station_set_cert_key((uint8 *) certificateBuffer, certificate.size(), (uint8 *) keyBuffer, key.size(), NULL, 0) != 0 ) {
         return false;
       }
+      certificate.close();
+      key.close();
       delete certificateBuffer;
       delete keyBuffer;
     }
-
-    if(get_status())
-      WiFi.disconnect();      
+    
+    disconnect_from_wifi();
     ssid.toCharArray(ssidChar, ssid_size+1);
     pass.toCharArray(passChar, pass_size+1);
+    delay(100);
+    WiFi.enableSTA(true);
+    //WiFi.enableSTA(true);
+    WiFi.begin(ssidChar, passChar);
     
-    WiFiMulti.APlistClean();
-    WiFi.mode(WIFI_STA);
-    WiFiMulti.addAP(ssidChar, passChar);
-    while(WiFiMulti.run() != WL_CONNECTED){
+    while(!get_status()){
       delay(1000);
       if(tries >= CONNECT_MAX_TRIES)
         return false;
       tries++;
-   }
+    }
+
+    con_state = CONNECTED;
     return true;
   }
 
   bool disconnect_from_wifi(){
-     WiFi.disconnect();
-
+     WiFi.enableSTA(false);
      con_state = DISCONNECTED;
      return true;
   }
@@ -338,11 +344,6 @@ IoTConnection iot;
 
 void setup() {
   Serial.begin(9600);
-  for(uint8_t t = 7; t > 0; t--) {
-      //Serial.printf("[SETUP] WAIT %d...\n", t);
-      //Serial.flush();
-      //delay(1000);
-    }
 }
 
 char command[32];
@@ -605,7 +606,7 @@ void act(){
     } else {
       bool result = iot.post((unsigned char *) data, data_size);
       if(result)
-        Serial.print("OK");
+        ("OK");
       else
         Serial.print("ERR");  
     }
