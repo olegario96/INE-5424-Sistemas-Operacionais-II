@@ -6,7 +6,7 @@
   Distributed under the terms of the MIT license
  ****************************************************/
 
-#include "FPM.h"
+#include <machine/cortex/FPM.h>
 #include <alarm.h>
 
 static const char param_offsets[] = {0, 1, 2, 3, 4, 6, 7};
@@ -14,7 +14,7 @@ static const char param_sizes[] = {2, 2, 2, 2, 4, 2, 2};
 static const uint16_t pLengths[] = {32, 64, 128, 256};
 
 using namespace EPOS;
-OStream cout;
+OStream fpmCout;
 
 FPM::FPM() {
   thePassword = 0;
@@ -26,7 +26,7 @@ FPM::FPM() {
 uint8_t FPM::handshake(){
   buffer[0] = FINGERPRINT_HANDSHAKE; 
   writePacket(theAddress, FINGERPRINT_COMMANDPACKET, 4, buffer);
-  uint16_t len = getReply();
+  getReply();
   if (buffer[6] != FINGERPRINT_ACKPACKET)
    return FINGERPRINT_BADPACKET;
   return buffer[9];
@@ -72,7 +72,7 @@ bool FPM::begin(UART *ss, uint32_t password, uint32_t address, uint8_t pLen) {
 uint8_t FPM::getImage(void) {
   buffer[0] = FINGERPRINT_GETIMAGE;
   writePacket(theAddress, FINGERPRINT_COMMANDPACKET, 3, buffer);
-  uint16_t len = getReply();
+  getReply();
   
   if (buffer[6] != FINGERPRINT_ACKPACKET)
    return FINGERPRINT_BADPACKET;
@@ -83,7 +83,7 @@ uint8_t FPM::image2Tz(uint8_t slot) {
   buffer[0] = FINGERPRINT_IMAGE2TZ; 
   buffer[1] = slot;
   writePacket(theAddress, FINGERPRINT_COMMANDPACKET, 4, buffer);
-  uint16_t len = getReply();
+  getReply();
 
   if (buffer[6] != FINGERPRINT_ACKPACKET)
    return FINGERPRINT_BADPACKET;
@@ -94,7 +94,7 @@ uint8_t FPM::image2Tz(uint8_t slot) {
 uint8_t FPM::createModel(void) {
   buffer[0] = FINGERPRINT_REGMODEL;
   writePacket(theAddress, FINGERPRINT_COMMANDPACKET, 3, buffer);
-  uint16_t len = getReply();
+  getReply();
   
   if (buffer[6] != FINGERPRINT_ACKPACKET)
    return FINGERPRINT_BADPACKET;
@@ -108,7 +108,7 @@ uint8_t FPM::storeModel(uint16_t id) {
   buffer[2] = id >> 8; buffer[3] = id & 0xFF;
   writePacket(theAddress, FINGERPRINT_COMMANDPACKET, 6, buffer);
 
-  uint16_t len = getReply();
+  getReply();
 
   if (buffer[6] != FINGERPRINT_ACKPACKET)
    return FINGERPRINT_BADPACKET;
@@ -121,7 +121,7 @@ uint8_t FPM::loadModel(uint16_t id) {
     buffer[1] = 0x01;
     buffer[2] = id >> 8; buffer[3] = id & 0xFF;
     writePacket(theAddress, FINGERPRINT_COMMANDPACKET, 6, buffer);
-    uint16_t len = getReply();
+    getReply();
     
     if (buffer[6] != FINGERPRINT_ACKPACKET)
         return FINGERPRINT_BADPACKET;
@@ -133,7 +133,7 @@ uint8_t FPM::setParam(uint8_t param, uint8_t value){
 	buffer[0] = FINGERPRINT_SETSYSPARAM;
     buffer[1] = param; buffer[2] = value;
 	writePacket(theAddress, FINGERPRINT_COMMANDPACKET, 5, buffer);
-    uint16_t len = getReply();
+    getReply();
     
     if (buffer[6] != FINGERPRINT_ACKPACKET)
         return FINGERPRINT_BADPACKET;
@@ -154,7 +154,7 @@ uint8_t FPM::readParam(uint8_t param, uint32_t * value){
 	  writePacket(theAddress, FINGERPRINT_COMMANDPACKET, 3, buffer);
 
     clearBuffer();
-    uint16_t len = getReply();
+    getReply();
     
     if (buffer[6] != FINGERPRINT_ACKPACKET)
         return FINGERPRINT_BADPACKET;
@@ -174,7 +174,7 @@ uint8_t FPM::readParam(uint8_t param, uint32_t * value){
 uint8_t FPM::downImage(void){
 	buffer[0] = FINGERPRINT_IMGUPLOAD;
     writePacket(theAddress, FINGERPRINT_COMMANDPACKET, 3, buffer);
-    uint16_t len = getReply();
+    getReply();
     
     if (buffer[6] != FINGERPRINT_ACKPACKET)
         return FINGERPRINT_BADPACKET;
@@ -182,8 +182,8 @@ uint8_t FPM::downImage(void){
 }
 
 bool FPM::readRaw(void * out, uint8_t outType, bool * lastPacket, uint16_t * bufLen){
-    //Stream * outStream; //OUTSTREAM sera substituido pelo smartDATA
-    uint8_t * outBuf;
+    OStream * outStream;
+    uint8_t * outBuf = 0;
     
     if (outType == ARRAY_TYPE) {
         if (bufLen == 0 || *bufLen < packetLen)        // if a buffer was provided, ensure theres enough space
@@ -191,8 +191,8 @@ bool FPM::readRaw(void * out, uint8_t outType, bool * lastPacket, uint16_t * buf
         else
             outBuf = (uint8_t *)out;
     }
-    //else if (outType == STREAM_TYPE)
-        //outStream = (Stream *)out;
+    else if (outType == STREAM_TYPE)
+        outStream = (OStream *)out;
     else
         return false;
     
@@ -202,9 +202,9 @@ bool FPM::readRaw(void * out, uint8_t outType, bool * lastPacket, uint16_t * buf
     uint16_t len;
     if (outType == ARRAY_TYPE)
         len = getReply(chunk);
-    //printBuffer(chunk, len);
-    //else if (outType == STREAM_TYPE)
-        //len = getReply(chunk, outStream);
+    
+    else if (outType == STREAM_TYPE)
+        len = getReply(chunk, outStream);
     
     if (len != packetLen){
         return false;
@@ -234,20 +234,20 @@ void FPM::writeRaw(uint8_t * data, uint16_t len){
     }
     writePacket(theAddress, FINGERPRINT_ENDDATAPACKET, len + 2, &data[written]);
     getReply(); // sensor sends unkonwn data
-  // //cout << ("---------------------------------------------") << endl;
+  // //fpmCout << ("---------------------------------------------") << endl;
   // for (int i = 0; i < 768; ++i)
   // {
-  //   //cout << "0x" << hex << data[i] << ", ";
+  //   //fpmCout << "0x" << hex << data[i] << ", ";
   // }
-  // //cout << ("--------------------------------------------") << endl;
+  // //fpmCout << ("--------------------------------------------") << endl;
 }
 
 bool FPM::getBufOneTemplate(uint8_t * templateBuf){
 	uint16_t pos = 0, count = 0, buflen = TEMPLATE_SIZE; 
-    bool lastPacket = false, working;
+  bool lastPacket = false, working;
 	while (true){
       while(!mySerial->ready_to_get());
-      bool working = readRaw(templateBuf + pos, ARRAY_TYPE, &lastPacket, &buflen);
+      working = readRaw(templateBuf + pos, ARRAY_TYPE, &lastPacket, &buflen);
       if (working){
         count++;
         pos += buflen;
@@ -267,7 +267,7 @@ uint8_t FPM::getModel(void) {
     buffer[0] = FINGERPRINT_UPLOAD;
     buffer[1] = 0x01;
     writePacket(theAddress, FINGERPRINT_COMMANDPACKET, 4, buffer);
-    uint16_t len = getReply();
+    getReply();
     
     if (buffer[6] != FINGERPRINT_ACKPACKET)
         return FINGERPRINT_BADPACKET;
@@ -278,7 +278,7 @@ uint8_t FPM::uploadModel(void){
     buffer[0] = FINGERPRINT_DOWNCHAR;
     buffer[1] = 0x01;
     writePacket(theAddress, FINGERPRINT_COMMANDPACKET, 4, buffer);
-    uint16_t len = getReply();
+    getReply();
     
     if (buffer[6] != FINGERPRINT_ACKPACKET)
         return FINGERPRINT_BADPACKET;
@@ -291,7 +291,7 @@ uint8_t FPM::deleteModel(uint16_t id, uint16_t num) {
     buffer[1] = id >> 8; buffer[2] = id & 0xFF;
     buffer[3] = num >> 8; buffer[4] = num & 0xFF;
     writePacket(theAddress, FINGERPRINT_COMMANDPACKET, 7, buffer);
-    uint16_t len = getReply();
+    getReply();
         
     if (buffer[6] != FINGERPRINT_ACKPACKET)
         return FINGERPRINT_BADPACKET;
@@ -301,7 +301,7 @@ uint8_t FPM::deleteModel(uint16_t id, uint16_t num) {
 uint8_t FPM::emptyDatabase(void) {
   buffer[0] = FINGERPRINT_EMPTY;
   writePacket(theAddress, FINGERPRINT_COMMANDPACKET, 3, buffer);
-  uint16_t len = getReply();
+  getReply();
   
   if (buffer[6] != FINGERPRINT_ACKPACKET)
    return FINGERPRINT_BADPACKET;
@@ -317,7 +317,7 @@ uint8_t FPM::fingerFastSearch(void) {
     buffer[2] = 0x00; buffer[3] = 0x00;
     buffer[4] = capacity >> 8; buffer[5] = capacity & 0xFF;
     writePacket(theAddress, FINGERPRINT_COMMANDPACKET, 8, buffer);
-    uint16_t len = getReply();
+    getReply();
 
     if (buffer[6] != FINGERPRINT_ACKPACKET)
         return FINGERPRINT_BADPACKET;
@@ -338,7 +338,7 @@ uint8_t FPM::fingerFastSearch(void) {
 uint8_t FPM::match_pair(void){
     buffer[0] = FINGERPRINT_PAIRMATCH;
     writePacket(theAddress, FINGERPRINT_COMMANDPACKET, 3, buffer);
-    uint16_t len = getReply();
+    getReply();
 
     if (buffer[6] != FINGERPRINT_ACKPACKET)
         return FINGERPRINT_BADPACKET;
@@ -357,7 +357,7 @@ uint8_t FPM::getTemplateCount(void) {
     // get number of templates in memory
     buffer[0] = FINGERPRINT_TEMPLATECOUNT;
     writePacket(theAddress, FINGERPRINT_COMMANDPACKET, 3, buffer);
-    uint16_t len = getReply();
+    getReply();
 
     if (buffer[6] != FINGERPRINT_ACKPACKET)
         return FINGERPRINT_BADPACKET;
@@ -387,6 +387,7 @@ bool FPM::getFreeIndex(int16_t * id){
         break;
     }
   }
+  return false;
 }
 
 uint8_t FPM::getFreeIndexPage(uint8_t page, int16_t * id){
@@ -415,27 +416,47 @@ uint8_t FPM::getFreeIndexPage(uint8_t page, int16_t * id){
     return buffer[9];
 }
 
+bool FPM::sendImageSerial(){
+	int i = 0;
+  bool lastPacket = false, working;
+	while (true){
+	  i++;
+      while(!mySerial->ready_to_get());
+      working = readRaw(&fpmCout, STREAM_TYPE, &lastPacket);
+      if (working){
+        if (lastPacket){
+          //fpmCout << "Num Iteracoes utimo pacote: " << i << endl;
+          return true;
+      }
+    }
+      else {
+      	//fpmCout << "Num Iteracoes: " << i << endl;
+ 		return false;
+    }
+  }	
+}
+
 void FPM::writePacket(uint32_t addr, uint8_t packettype, 
 				       uint16_t len, uint8_t *packet) {
 #ifdef FINGERPRINT_DEBUG
-  ////cout << ("---> 0x");
-  //cout << hex << (uint32_t)(FINGERPRINT_STARTCODE >> 8) << endl;
-  ////cout << (" 0x");
-  //cout << hex << (uint32_t)FINGERPRINT_STARTCODE<< endl;
-  ////cout << (" 0x");
-  //cout << hex << (uint32_t)(addr >> 24)<< endl;
-  ////cout << (" 0x");
-  //cout << hex << (uint32_t)(addr >> 16)<< endl;
-  ////cout << (" 0x");
-  //cout << hex << (uint32_t)(addr >> 8)<< endl;
-  ////cout << (" 0x");
-  //cout << hex << (uint32_t)(addr)<< endl;
-  ////cout << (" 0x");
-  //cout << hex << (uint32_t)packettype<< endl;
-  ////cout << (" 0x");
-  //cout << hex << (uint32_t)(len >> 8)<< endl;
-  ////cout << (" 0x");
-  //cout << hex << (uint32_t)(len) << endl;
+  ////fpmCout << ("---> 0x");
+  //fpmCout << hex << (uint32_t)(FINGERPRINT_STARTCODE >> 8) << endl;
+  ////fpmCout << (" 0x");
+  //fpmCout << hex << (uint32_t)FINGERPRINT_STARTCODE<< endl;
+  ////fpmCout << (" 0x");
+  //fpmCout << hex << (uint32_t)(addr >> 24)<< endl;
+  ////fpmCout << (" 0x");
+  //fpmCout << hex << (uint32_t)(addr >> 16)<< endl;
+  ////fpmCout << (" 0x");
+  //fpmCout << hex << (uint32_t)(addr >> 8)<< endl;
+  ////fpmCout << (" 0x");
+  //fpmCout << hex << (uint32_t)(addr)<< endl;
+  ////fpmCout << (" 0x");
+  //fpmCout << hex << (uint32_t)packettype<< endl;
+  ////fpmCout << (" 0x");
+  //fpmCout << hex << (uint32_t)(len >> 8)<< endl;
+  ////fpmCout << (" 0x");
+  //fpmCout << hex << (uint32_t)(len) << endl;
 #endif
 
 
@@ -465,9 +486,8 @@ mySerial->put((uint8_t)sum);
 }
 
 //MODIFIED: adjusted to allow for image download
-uint16_t FPM::getReply(uint8_t * replyBuf, /*Stream * outStream,*/ uint16_t timeout) {
+uint16_t FPM::getReply(uint8_t * replyBuf, OStream * outStream, uint16_t timeout) {
   uint8_t idx, val, *packet;
-  uint8_t bytes = 0;
   uint16_t timer = 0;
   uint16_t len = 0;
   uint16_t expectedSum = 0;
@@ -485,8 +505,8 @@ while (true) {
       Delay(5000);
       timer++;
       if (timer >= timeout){
-          ////cout << "TIMEOUT!" << endl;
-          ////cout << "Bytes lidos: "<< idx <<endl;
+          fpmCout << "TIMEOUT!" << endl;
+          fpmCout << "Bytes lidos: "<< idx <<endl;
           return FINGERPRINT_TIMEOUT;        
       }
 
@@ -494,19 +514,19 @@ while (true) {
     // something to read!
     val = mySerial->get();
     
-    /*if (idx > 8 && outStream != NULL){
-        outStream->write(val);
+    if (idx > 8 && outStream != 0){
+    	packet[idx] = val;
+        (*outStream) << (char) val;
     }
-    else*/
-  
+    else  
         packet[idx] = val;
 
     if ((idx == 0) && (packet[0] != (FINGERPRINT_STARTCODE >> 8)))
       continue;
     
 #ifdef FINGERPRINT_DEBUG
-    ////cout << (" 0x"); 
-    ////cout << reply[idx] << endl;
+    ////fpmCout << (" 0x"); 
+    ////fpmCout << reply[idx] << endl;
 #endif
 
     if (idx == 8) {
@@ -533,10 +553,10 @@ while (true) {
         if(expectedSum == receivedSum)
           return len;
         else{
-          //cout << "Checksum nao é a esperada" << endl;
-          //cout << "Checksum reply: "<< hex << receivedSum << endl;
-          //cout << "Checksum calculada: "<< hex << expectedSum << endl;
-          printBuffer(buffer);
+          fpmCout << "Checksum nao é a esperada" << endl;
+          fpmCout << "Checksum reply: "<< hex << receivedSum << endl;
+          fpmCout << "Checksum calculada: "<< hex << expectedSum << endl;
+          printBuffer(packet);
           packet[6] = FINGERPRINT_BADPACKET;
           return FINGERPRINT_BADPACKET;
         }
@@ -545,8 +565,8 @@ while (true) {
 }
 
 void FPM:: printBuffer(uint8_t * buffer, uint32_t size){
-    for(int i = 0; i < size; i++){
-        cout << hex << buffer[i] << endl;
+    for(uint32_t i = 0; i < size; i++){
+        fpmCout << hex << buffer[i] << endl;
     }
 }
 
@@ -560,28 +580,28 @@ void FPM::printAllParams(){
     uint32_t value;
 
     clearBuffer();
-    cout << "Lendo params" << endl;
+    fpmCout << "Lendo params" << endl;
     if (readParam(STATUS_REG, &value) == FINGERPRINT_OK){
-      cout << "Status: " << value << endl;
+      fpmCout << "Status: " << value << endl;
     } 
     if (readParam(STATUS_REG, &value) == FINGERPRINT_OK){
-      cout << "System ID: " << value << endl;
+      fpmCout << "System ID: " << value << endl;
     }
     if (readParam(DB_SIZE, &value) == FINGERPRINT_OK){
-      cout << "Database Size: " << value << endl;
+      fpmCout << "Database Size: " << value << endl;
     }
     if (readParam(SEC_LEVEL, &value) == FINGERPRINT_OK){
-      cout << "Security Level: " << value << endl;
+      fpmCout << "Security Level: " << value << endl;
     }   
     if (readParam(DEVICE_ADDR, &value) == FINGERPRINT_OK){
-      cout << "Device Address: " << value << endl;
+      fpmCout << "Device Address: " << value << endl;
     }   
     if (readParam(PACKET_LEN, &value) == FINGERPRINT_OK){
       packetLen = pLengths[value];
-      cout << "Packet Size: " << value << endl;
+      fpmCout << "Packet Size: " << value << endl;
     }
     if (readParam(BAUD_RATE, &value) == FINGERPRINT_OK){
-      cout << "Baud Rate: " << value*9600 << endl;
+      fpmCout << "Baud Rate: " << value*9600 << endl;
     }      
 }
 

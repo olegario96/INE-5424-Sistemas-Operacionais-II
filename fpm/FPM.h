@@ -167,6 +167,7 @@ class FPM {
   uint8_t getTemplateCount(void);
   uint8_t match_pair(void);
   bool getBufOneTemplate(uint8_t * templateBuf);
+  bool sendImageSerial();
 
   void printAllParams();
   
@@ -183,7 +184,7 @@ class FPM {
   void clearBuffer();
   void printBuffer(uint8_t * buff, uint32_t size = 44);
   void writePacket(uint32_t addr, uint8_t packettype, uint16_t len, uint8_t *packet);
-  uint16_t getReply(uint8_t * replyBuf=0, /*Stream * outStream = NULL,*/ uint16_t timeout=DEFAULTTIMEOUT);
+  uint16_t getReply(uint8_t * replyBuf=0, OStream * outStream = 0, uint16_t timeout=DEFAULTTIMEOUT);
 };
 
 #endif
