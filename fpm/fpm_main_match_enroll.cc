@@ -438,13 +438,13 @@ int main()
   
   cout << "Tentando conectar" << endl;
   
-  wifi->connect("LISHA", 5, "LISHAPASS", 9);
+  wifi->connect("LRG", 3, "$UFSC$LRG", 9);
   int vezes = 0;
   while(!wifi->connected()){
      vezes++;
      cout << "Tentando conectar " << vezes << endl;
      Delay(3000000);
-     wifi->connect("LISHA", 5, "LISHAPASS", 9);
+     wifi->connect("LRG", 3, "$UFSC$LRG", 9);
   }
    
   cout << "CONNECTED" << endl;
@@ -470,6 +470,7 @@ int main()
   int size = 0, numBiometrics;
   char numBiometricsChar[7], biometricChar[7];
 
+  size = wifi->get(numBiometricsChar, "0", 1);
   while(strncmp("ERR", numBiometricsChar, 3) == 0)
     size = wifi->get(numBiometricsChar, "0", 1);
 
