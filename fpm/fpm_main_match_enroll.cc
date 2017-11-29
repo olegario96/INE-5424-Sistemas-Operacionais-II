@@ -438,13 +438,13 @@ int main()
   
   cout << "Tentando conectar" << endl;
   
-  wifi->connect("LRG", 3, "$UFSC$LRG", 9);
+  wifi->connect("LISHA", 5, "LISHAPASS", 9);
   int vezes = 0;
   while(!wifi->connected()){
      vezes++;
      cout << "Tentando conectar " << vezes << endl;
      Delay(3000000);
-     wifi->connect("LRG", 3, "$UFSC$LRG", 9);
+     wwifi->connect("LISHA", 5, "LISHAPASS", 9);
   }
    
   cout << "CONNECTED" << endl;
